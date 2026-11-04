@@ -185,7 +185,7 @@
   // state
   let S = { name: '', email: '', tasks: [], log: {}, memo: '', at: 'start' };
   const blankLog = () => { const l = {}; D.STEPS.forEach((s) => { l[s.id] = { done: false, attempts: 0, help: 0 }; }); return l; };
-  function saveState() { store.set(KEY + ':' + D.seedFor(S.email), { name: S.name, email: S.email, log: S.log, memo: S.memo, at: S.at }); store.set(KEY + ':last', S.email); }
+  function saveState() { if (S.practice) return; store.set(KEY + ':' + D.seedFor(S.email), { name: S.name, email: S.email, log: S.log, memo: S.memo, at: S.at }); store.set(KEY + ':last', S.email); }
   function startFor(name, email) {
     S.name = name.trim(); S.email = normEmail(email); S.tasks = D.buildTasks(S.email);
     const saved = store.get(KEY + ':' + D.seedFor(S.email));
@@ -198,7 +198,8 @@
   function markDone(id) { const L = S.log[id]; if (!L.done) { L.done = true; L.at = new Date().toISOString(); } saveState(); renderNav(); }
   function nextId(id) { const i = stepIdx(id); return i < D.STEPS.length - 1 ? D.STEPS[i + 1].id : 'receipt'; }
   function nextLabel(id) { const n = nextId(id); return n === 'receipt' ? 'Go to your receipt' : 'Next: ' + D.STEPS[stepIdx(n)].label; }
-  const kicker = (id) => `<p class="kicker">Step ${stepIdx(id) + 1} of ${D.STEPS.length} · ${esc(D.STEPS[stepIdx(id)].label)}</p>`;
+  const practiceBanner = () => (S.practice ? `<p class="practice-banner"><b>Practice round ${S.practice}.</b> New numbers, not graded. Your receipt is unchanged.</p>` : '');
+  const kicker = (id) => `${practiceBanner()}<p class="kicker">Step ${stepIdx(id) + 1} of ${D.STEPS.length} · ${esc(D.STEPS[stepIdx(id)].label)}</p>`;
   const memoHead = (done) => `<div class="memo-head"><span>From <b>${esc(ST.from)}</b>, ${esc(ST.fromTitle)}</span>${done ? '<span class="stamp">Done</span>' : ''}</div>`;
   function renderNav() {
     const ol = $('#stepNav'); ol.innerHTML = ''; $('#navnote').hidden = !S.email; if (!S.email) return;
@@ -370,7 +371,21 @@
     const blob = await new Promise((res) => cv.toBlob(res, 'image/png')); const bytes = new Uint8Array(await blob.arrayBuffer());
     return { blob: new Blob([D.addTextChunk(bytes, D.encodeReceipt(payload))], { type: 'image/png' }), url: cv.toDataURL('image/png'), payload, pts, done };
   }
+  function startPractice() {
+    const k = KEY + ':practice:' + D.seedFor(S.email); const round = (Number(store.get(k)) || 0) + 1; store.set(k, round);
+    S.practice = round; S.tasks = D.buildTasks(S.email + '#practice' + round); S.log = blankLog();
+    const first = D.STEPS.find((s) => s.kind === 'task'); go(first ? first.id : D.STEPS[0].id);
+  }
+  function endPractice() { const nm = S.name, em = S.email; S.practice = 0; startFor(nm, em); go('receipt'); }
+  function showPracticeEnd() {
+    const tasks = D.STEPS.filter((s) => s.kind === 'task'), done = tasks.filter((s) => S.log[s.id].done).length;
+    view.innerHTML = `${practiceBanner()}<p class="kicker">Practice round ${S.practice}</p><h2>You solved ${done} of ${tasks.length} problems with new numbers.</h2>
+      <p>Practice rounds are never graded. Your graded receipt is exactly as you left it.</p>
+      <div class="actions"><button class="btn" type="button" id="again">Practice again with new numbers</button><button class="btn secondary" type="button" id="back">Back to my graded receipt</button></div>`;
+    $('#again').addEventListener('click', startPractice); $('#back').addEventListener('click', endPractice);
+  }
   async function showReceipt() {
+    if (S.practice) return showPracticeEnd();
     const r = await makeReceiptBlob(); const all = r.done === D.STEPS.length; const fileName = C.filePrefix + '_' + (S.name.replace(/[^A-Za-z0-9]+/g, '') || 'Student') + '.png';
     view.innerHTML = `<p class="kicker">Your receipt</p><p class="points">${r.pts} / ${D.POINTS} points</p><h2>${all ? 'Every step is complete.' : 'A few steps are still open.'}</h2>
       <p>${all ? 'Download your receipt and upload it to the assignment page. That is all there is to it.' : 'This assignment is graded on completion. Finish the open steps below for full credit, then download your receipt.'}</p>
@@ -378,7 +393,9 @@
       <div class="actions"><a class="btn" id="dl" download="${fileName}" href="#">Download your receipt</a></div>
       <img class="cert-preview" alt="Receipt preview: ${esc(S.name)}, ${r.pts} of ${D.POINTS} points, ${r.done} of ${D.STEPS.length} steps complete, verification code ${D.shortCode(r.payload.sum)}." src="${r.url}">
       <p class="small">The file is named ${esc(fileName)}. Upload the downloaded file itself, not a screenshot: your instructor’s checker reads data stored inside the file. If you finish more steps later, download a new receipt.</p>
+      <div class="box"><p><b>Want more practice before an exam?</b> Work the problems again with new numbers. Practice rounds are not graded and do not change this receipt.</p><div class="actions"><button class="btn secondary" type="button" id="practice">Practice with new numbers</button></div></div>
       <p class="small">Not you? <a href="#" id="switch">Start over with a different email</a>.</p>`;
+    $('#practice').addEventListener('click', startPractice);
     $('#dl').href = URL.createObjectURL(r.blob); $$('button[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
     $('#switch').addEventListener('click', (e) => { e.preventDefault(); S = { name: '', email: '', tasks: [], log: {}, memo: '', at: 'start' }; store.set(KEY + ':last', null); showStart(); });
   }

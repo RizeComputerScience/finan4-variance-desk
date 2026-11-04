@@ -210,16 +210,28 @@
       b.addEventListener('click', () => go(s.id)); li.appendChild(b); ol.appendChild(li);
     });
   }
+  function renderPager(id) {
+    let pg = document.getElementById('pager');
+    if (!pg) { pg = document.createElement('nav'); pg.id = 'pager'; pg.className = 'pager'; pg.setAttribute('aria-label', 'Previous and next step'); view.after(pg); }
+    const all = D.STEPS.map((s) => ({ id: s.id, label: s.label })).concat([{ id: 'receipt', label: 'Receipt' }]);
+    const i = all.findIndex((s) => s.id === id);
+    if (i < 0) { pg.hidden = true; pg.innerHTML = ''; return; }
+    const prev = i > 0 ? all[i - 1] : null, next = i < all.length - 1 ? all[i + 1] : null;
+    pg.hidden = false;
+    pg.innerHTML = (prev ? `<button type="button" class="btn secondary" data-go="${prev.id}">← Previous: ${esc(prev.label)}</button>` : '<span></span>')
+      + (next ? `<button type="button" class="btn" data-go="${next.id}">Next: ${esc(next.label)} →</button>` : '');
+    pg.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+  }
   function go(id) {
     dockCalc(null); if (!S.email) return showStart();
     S.at = id; saveState(); const s = D.STEPS[stepIdx(id)];
     if (id === 'receipt') showReceipt(); else if (s.kind === 'walk') showWalk(s); else if (s.kind === 'check') showCheck(s); else if (s.kind === 'note') showNote(s); else showTask(s);
-    renderNav(); $('#main').focus({ preventScroll: true }); root.scrollTo(0, 0);
+    renderNav(); renderPager(id); $('#main').focus({ preventScroll: true }); root.scrollTo(0, 0);
   }
 
   // start
   function showStart() {
-    S.at = 'start';
+    S.at = 'start'; if (document.getElementById('pager')) document.getElementById('pager').hidden = true;
     const last = store.get(KEY + ':last'); const lastSaved = last ? store.get(KEY + ':' + D.seedFor(last)) : null;
     const n = D.STEPS.length;
     view.innerHTML = `<p class="kicker">${esc(ST.kicker)}</p><h1>${esc(ST.title)}</h1><p class="dek">${ST.dek}</p>
@@ -275,7 +287,7 @@
       if (!c) { fb.className = 'fb bad'; fb.textContent = 'Choose an answer.'; return; }
       L.choice = Number(c.value); L.attempts = (L.attempts || 0) + 1; const ok = D.judgeQuiz(s.quiz, L.choice).ok;
       fb.className = 'fb ' + (ok ? 'ok' : 'bad'); fb.textContent = q.why[L.choice];
-      if (ok) { markDone(s.id); $('#nextRow').hidden = false; $('#nextBtn').focus(); }
+      if (ok) { markDone(s.id); $('#nextRow').hidden = false; (document.querySelector('#pager [data-go]:not(.secondary)') || $('#nextBtn')).focus(); }
       $('#att').textContent = 'Checks so far: ' + L.attempts; saveState();
     });
     $('#nextBtn').addEventListener('click', () => go(nextId(s.id)));
@@ -311,7 +323,7 @@
       syncRows(); const res = C.judgeTask(t, { value: val, choice: ch, rows: L.rows }, h);
       L.attempts = (L.attempts || 0) + 1; L.value = val; L.choice = ch; const fb = $('#fb');
       if (res.rowRes) res.rowRes.forEach((rr, i) => { const x = $(`.rowin[data-row="${i}"]`), mk = $('#mk' + i); if (!x || rr == null) return; x.classList.toggle('good', rr.ok); x.classList.toggle('wrong', !rr.ok); if (mk) { mk.textContent = rr.ok ? '✓' : '✗'; mk.setAttribute('aria-label', rr.ok ? 'correct' : 'not yet'); } });
-      if (res.ok) { markDone(s.id); fb.className = 'fb ok'; fb.innerHTML = '<b>Right.</b> ' + C.praise(t, h); $('#nextRow').hidden = false; $('#helpRow').hidden = true; $('#nextBtn').focus(); }
+      if (res.ok) { markDone(s.id); fb.className = 'fb ok'; fb.innerHTML = '<b>Right.</b> ' + C.praise(t, h); $('#nextRow').hidden = false; $('#helpRow').hidden = true; (document.querySelector('#pager [data-go]:not(.secondary)') || $('#nextBtn')).focus(); }
       else { L.fails = (L.fails || 0) + 1; fb.className = 'fb bad'; fb.innerHTML = '<b>Not yet.</b> ' + esc(res.msg || 'Check your work and try again.'); renderHelp(); }
       $('#att').textContent = 'Checks so far: ' + L.attempts; saveState();
     });
@@ -346,8 +358,9 @@
     g.fillStyle = '#5C625D'; g.font = '26px Georgia, serif'; g.fillText(S.email, 80, 276);
     g.fillStyle = done === n ? '#1C6B4A' : '#8A5A00'; g.fillRect(80, 306, 1040, 96); g.fillStyle = '#FFFFFF'; g.font = 'bold 44px Georgia, serif'; g.fillText('Points: ' + pts + ' / ' + D.POINTS, 108, 370);
     g.font = '24px Georgia, serif'; g.textAlign = 'right'; g.fillText(done + ' of ' + n + ' steps complete · graded on completion', 1092, 366); g.textAlign = 'left';
+    const fit = (g, txt, max, px) => { let s = px; do { g.font = 'bold ' + s + 'px Georgia, serif'; s -= 1; } while (g.measureText(txt).width > max && s >= 12); };
     D.STEPS.forEach((s, k) => { const x = 80 + (k % cols) * (boxW + 12), y = 430 + Math.floor(k / cols) * 92, l = S.log[s.id];
-      g.fillStyle = l.done ? '#E0F2E5' : '#FBE7E4'; g.fillRect(x, y, boxW, 76); g.fillStyle = l.done ? '#1C7340' : '#A8261E'; g.font = 'bold 18px Georgia, serif'; g.fillText((l.done ? '✓ ' : '✗ ') + s.label, x + 14, y + 34);
+      g.fillStyle = l.done ? '#E0F2E5' : '#FBE7E4'; g.fillRect(x, y, boxW, 76); g.fillStyle = l.done ? '#1C7340' : '#A8261E'; const tl = (l.done ? '✓ ' : '✗ ') + s.label; fit(g, tl, boxW - 22, 18); g.fillText(tl, x + 14, y + 34);
       g.fillStyle = '#5C625D'; g.font = '17px Georgia, serif'; g.fillText(l.done ? 'complete' : 'not finished', x + 14, y + 60); });
     const ny = 430 + rowsN * 92 + 40; g.fillStyle = '#1B211D'; g.font = 'bold 24px Georgia, serif'; g.fillText(C.note.receiptHeading, 80, ny);
     g.font = '21px Georgia, serif'; (S.memo.trim() ? wrapLines(g, S.memo, 1040, 9) : ['(no note yet)']).forEach((ln, i) => g.fillText(ln, 80, ny + 34 + i * 29));

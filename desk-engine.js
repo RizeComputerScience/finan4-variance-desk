@@ -3,7 +3,23 @@
    form (email twice), the worked example stepper, one-question checks, task steps with row checks and a
    help ladder, an inline calculator, the note, the completion-graded PNG receipt, and verification.
    Design rules: coursedev/process/standards/interactive-assignments.md. Reference unit: FINAN IV Unit 5.
-   No dependencies. Works with or without a DOM (Node can load it for tests and for the verifier). */
+   No dependencies. Works with or without a DOM (Node can load it for tests and for the verifier).
+
+   Opt-in fields (added 2026-11-05 after Samuel's Unit 10 review). All optional; a config without them renders exactly as before.
+   Returned by taskView(t, L, h):
+   - parts: [{ html, field }]  Interleaves questions and inputs, so each answer field sits right under its own question.
+       field is 'value', 'choice', 'table' or omitted (text only). Parts render inside the answer form, in order; a value,
+       choice or table that no part names renders in its usual place. Use the field's label or legend as the question itself.
+   - autosave: true  For steps with no right answer. No Check button: the step judges itself on input (debounced) and on
+       change, records value/choice/rows and marks the step done the moment judgeTask says ok, shows a quiet "Saved" and the
+       praise text. An invalid edit after saving never overwrites the saved answer. Receipt, checksum and verify are unchanged.
+   - example: '<p>..</p>'  A short worked example (2 to 4 lines, one per calculation step, numbers different from the task),
+       rendered open, in a <details> box above the inputs.
+   - sources: 'html'  Citations, rendered collapsed in <details><summary>Sources</summary> at the bottom of the step.
+       C.walk.sources does the same for the walk step.
+   - value.help: '' (empty string) omits the help line under the value field; leaving help out keeps the default help.
+   Engine behaviour fixed at the same time: once a task step is done, a later wrong Check or a half-edited table no longer
+   overwrites the answer stored for the receipt (it used to, and then verify flagged the done step as not checking out). */
 (function (root) {
   'use strict';
 
@@ -200,6 +216,8 @@
   function nextLabel(id) { const n = nextId(id); return n === 'receipt' ? 'Go to your receipt' : 'Next: ' + D.STEPS[stepIdx(n)].label; }
   const practiceBanner = () => (S.practice ? `<p class="practice-banner"><b>Practice round ${S.practice}.</b> New numbers, not graded. Your receipt is unchanged.</p>` : '');
   const kicker = (id) => `${practiceBanner()}<p class="kicker">Step ${stepIdx(id) + 1} of ${D.STEPS.length} · ${esc(D.STEPS[stepIdx(id)].label)}</p>`;
+  const sourcesBox = (html) => (html ? `<details class="sources"><summary>Sources</summary><div class="sources-body">${html}</div></details>` : '');
+  const exampleBox = (html) => (html ? `<details class="example" open><summary>Worked example</summary><div class="ex-body">${html}</div></details>` : '');
   const memoHead = (done) => `<div class="memo-head"><span>From <b>${esc(ST.from)}</b>, ${esc(ST.fromTitle)}</span>${done ? '<span class="stamp">Done</span>' : ''}</div>`;
   function renderNav() {
     const ol = $('#stepNav'); ol.innerHTML = ''; $('#navnote').hidden = !S.email; if (!S.email) return;
@@ -269,7 +287,7 @@
       ${W.render(stage, h)}
       <ol style="padding-left:1.3rem">${W.stages.slice(0, stage + 1).map((x, i) => `<li class="${i === stage ? 'reveal' : ''}"><b>${x.t}.</b> ${x.p}${x.extra || ''}</li>`).join('')}</ol>
       <div class="actions">${stage < W.stages.length - 1 ? `<button class="btn" type="button" id="walkNext">Show the next step (${stage + 2} of ${W.stages.length})</button>` : `<button class="btn" type="button" id="walkDone">${L.done ? nextLabel(s.id) : 'I’ve got it. ' + nextLabel(s.id)}</button>`}
-      ${stage > 0 ? '<button class="btn secondary" type="button" id="walkReset">Start the example over</button>' : ''}</div></article>`;
+      ${stage > 0 ? '<button class="btn secondary" type="button" id="walkReset">Start the example over</button>' : ''}</div>${sourcesBox(W.sources)}</article>`;
     if ($('#walkNext')) $('#walkNext').addEventListener('click', () => { L.stage = stage + 1; saveState(); showWalk(s); ($('#walkNext') || $('#walkDone')).focus(); });
     if ($('#walkDone')) $('#walkDone').addEventListener('click', () => { markDone(s.id); go(nextId(s.id)); });
     if ($('#walkReset')) $('#walkReset').addEventListener('click', () => { L.stage = 0; saveState(); showWalk(s); });
@@ -298,19 +316,50 @@
   function radios(name, legend, opts, current) { return `<fieldset><legend>${legend}</legend><div class="choices">${opts.map(([v, t]) => `<label class="choice"><input type="radio" name="${name}" value="${v}" ${current === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></fieldset>`; }
   function showTask(s) {
     const t = S.tasks.find((x) => x.id === s.id), L = S.log[s.id], v = C.taskView(t, L, h);
-    view.innerHTML = `${kicker(s.id)}<article class="memo" aria-labelledby="t">${memoHead(L.done)}<h2 id="t">${esc(v.title)}</h2>${v.place ? `<p class="place">${esc(v.place)}</p>` : ''}${v.body}
-      ${v.table || ''}${v.noCalc ? '' : '<div id="calcSlot"></div>'}
+    const parts = Array.isArray(v.parts) ? v.parts : null, placed = new Set(parts ? parts.map((p) => p.field).filter(Boolean) : []);
+    const vHelp = v.value ? (v.value.help != null ? v.value.help : 'Round to the nearest dollar. Start a negative amount with a minus sign. Answers within about 0.1% count as correct.') : '';
+    const valueHtml = () => (v.value ? `<div class="field"><label for="val">${esc(v.value.label)}</label><input class="money" id="val" inputmode="decimal" autocomplete="off" placeholder="${esc(v.value.placeholder || '$0')}" value="${L.value ? esc(L.value) : ''}"${vHelp ? ' aria-describedby="valHelp"' : ''}>${vHelp ? `<p class="field-help" id="valHelp">${vHelp}</p>` : ''}</div>` : '');
+    const choiceHtml = () => (v.choice ? radios('dec', v.choice.legend, v.choice.options, L.choice) : '');
+    const fieldHtml = (f) => (f === 'value' ? valueHtml() : f === 'choice' ? choiceHtml() : f === 'table' ? (v.table || '') : '');
+    const calcSlot = v.noCalc ? '' : '<div id="calcSlot"></div>';
+    const auto = !!v.autosave;
+    view.innerHTML = `${kicker(s.id)}<article class="memo" aria-labelledby="t">${memoHead(L.done)}<h2 id="t">${esc(v.title)}</h2>${v.place ? `<p class="place">${esc(v.place)}</p>` : ''}${v.body || ''}
+      ${exampleBox(v.example)}${placed.has('table') ? '' : (v.table || '')}${parts ? '' : calcSlot}
       <form class="ask" id="ask" novalidate>
-      ${v.value ? `<div><label for="val">${esc(v.value.label)}</label><input class="money" id="val" inputmode="decimal" autocomplete="off" placeholder="${esc(v.value.placeholder || '$0')}" value="${L.value ? esc(L.value) : ''}" aria-describedby="valHelp"><p class="field-help" id="valHelp">${v.value.help || 'Round to the nearest dollar. Start a negative amount with a minus sign. Answers within about 0.1% count as correct.'}</p></div>` : ''}
-      ${v.choice ? radios('dec', v.choice.legend, v.choice.options, L.choice) : ''}
-      <div class="actions"><button class="btn" type="submit">Check</button><span class="attempts" id="att">${L.attempts ? 'Checks so far: ' + L.attempts : ''}</span></div>
+      ${parts ? parts.map((p) => `<div class="part">${p.html || ''}${fieldHtml(p.field)}</div>`).join('') + calcSlot : ''}
+      ${placed.has('value') ? '' : valueHtml()}
+      ${placed.has('choice') ? '' : choiceHtml()}
+      ${auto ? '<p class="autosave" id="saveState" aria-live="polite"></p>' : `<div class="actions"><button class="btn" type="submit">Check</button><span class="attempts" id="att">${L.attempts ? 'Checks so far: ' + L.attempts : ''}</span></div>`}
       <div class="fb" id="fb" aria-live="polite"></div><div class="actions" id="helpRow" hidden></div><div class="fb hint" id="helpBox" hidden></div>
-      <div class="actions" id="nextRow" ${L.done ? '' : 'hidden'}><button class="btn" type="button" id="nextBtn">${nextLabel(s.id)}</button></div></form></article>`;
+      <div class="actions" id="nextRow" ${L.done ? '' : 'hidden'}><button class="btn" type="button" id="nextBtn">${nextLabel(s.id)}</button></div></form>${sourcesBox(v.sources)}</article>`;
     if ($('#calcSlot')) dockCalc($('#calcSlot'));
     const rowInputs = () => $$('.rowin');
-    const syncRows = () => { if (!rowInputs().length) return; const rows = []; rowInputs().forEach((x) => { rows[Number(x.dataset.row)] = x.value; }); L.rows = rows; saveState(); if (v.onRows) v.onRows(rows, $); };
+    const rowsNow = () => { if (!rowInputs().length) return null; const rows = []; rowInputs().forEach((x) => { rows[Number(x.dataset.row)] = x.value; }); return rows; };
+    // Once a step is done, L.rows holds the answer that verified; edits only replace it when they verify too.
+    const syncRows = () => { const rows = rowsNow(); if (!rows) return; if (!L.done) { L.rows = rows; saveState(); } if (v.onRows) v.onRows(rows, $); };
     rowInputs().forEach((x) => x.addEventListener('input', syncRows)); syncRows();
     if (v.wire) v.wire($, L);
+    $('#nextBtn').addEventListener('click', () => go(nextId(s.id)));
+    if (auto) {
+      const form = $('#ask'), status = $('#saveState'), fb = $('#fb'); let timer = null;
+      const read = () => ({ value: $('#val') ? $('#val').value : null, choice: (form.querySelector('input[name=dec]:checked') || {}).value || null, rows: rowsNow() });
+      const blank = (e) => !String(e.value || '').trim() && !e.choice && !(e.rows || []).some((x) => x != null && String(x).trim());
+      const autoJudge = () => {
+        clearTimeout(timer); const e = read(); const res = C.judgeTask(t, e, h);
+        if (res.ok) {
+          const first = !L.done; L.value = e.value; L.choice = e.choice; if (e.rows) L.rows = e.rows; if (first) L.attempts = Math.max(L.attempts || 0, 1);
+          markDone(s.id); status.className = 'autosave ok'; status.textContent = 'Saved'; fb.className = 'fb note'; fb.innerHTML = C.praise(t, h); $('#nextRow').hidden = false;
+        } else {
+          status.className = 'autosave'; status.textContent = blank(e) ? '' : (res.msg || '') + (L.done ? ' Your earlier answer is still saved.' : '');
+        }
+        saveState();
+      };
+      form.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(autoJudge, 500); });
+      form.addEventListener('change', autoJudge);
+      form.addEventListener('submit', (e) => { e.preventDefault(); autoJudge(); });
+      if (L.done) autoJudge();
+      return;
+    }
     const levels = v.helpLevels || 2;
     function renderHelp() {
       const row = $('#helpRow'); const fails = L.fails || 0; if (!fails || L.done) { row.hidden = true; return; }
@@ -321,14 +370,14 @@
     renderHelp();
     $('#ask').addEventListener('submit', (e) => {
       e.preventDefault(); const val = $('#val') ? $('#val').value : null; const ch = ($('#ask').querySelector('input[name=dec]:checked') || {}).value || null;
-      syncRows(); const res = C.judgeTask(t, { value: val, choice: ch, rows: L.rows }, h);
-      L.attempts = (L.attempts || 0) + 1; L.value = val; L.choice = ch; const fb = $('#fb');
+      const rows = rowsNow(); const res = C.judgeTask(t, { value: val, choice: ch, rows: rows || L.rows }, h);
+      L.attempts = (L.attempts || 0) + 1; const fb = $('#fb');
+      if (res.ok || !L.done) { L.value = val; L.choice = ch; if (rows) L.rows = rows; }
       if (res.rowRes) res.rowRes.forEach((rr, i) => { const x = $(`.rowin[data-row="${i}"]`), mk = $('#mk' + i); if (!x || rr == null) return; x.classList.toggle('good', rr.ok); x.classList.toggle('wrong', !rr.ok); if (mk) { mk.textContent = rr.ok ? '✓' : '✗'; mk.setAttribute('aria-label', rr.ok ? 'correct' : 'not yet'); } });
       if (res.ok) { markDone(s.id); fb.className = 'fb ok'; fb.innerHTML = '<b>Right.</b> ' + C.praise(t, h); $('#nextRow').hidden = false; $('#helpRow').hidden = true; (document.querySelector('#pager [data-go]:not(.secondary)') || $('#nextBtn')).focus(); }
       else { L.fails = (L.fails || 0) + 1; fb.className = 'fb bad'; fb.innerHTML = '<b>Not yet.</b> ' + esc(res.msg || 'Check your work and try again.'); renderHelp(); }
       $('#att').textContent = 'Checks so far: ' + L.attempts; saveState();
     });
-    $('#nextBtn').addEventListener('click', () => go(nextId(s.id)));
   }
 
   // note
@@ -374,7 +423,7 @@
   function startPractice() {
     const k = KEY + ':practice:' + D.seedFor(S.email); const round = (Number(store.get(k)) || 0) + 1; store.set(k, round);
     S.practice = round; S.tasks = D.buildTasks(S.email + '#practice' + round); S.log = blankLog();
-    const first = D.STEPS.find((s) => s.kind === 'task'); go(first ? first.id : D.STEPS[0].id);
+    const first = (C.practiceStart && D.STEPS.find((s) => s.id === C.practiceStart)) || D.STEPS.find((s) => s.kind === 'task'); go(first ? first.id : D.STEPS[0].id);
   }
   function endPractice() { const nm = S.name, em = S.email; S.practice = 0; startFor(nm, em); go('receipt'); }
   function showPracticeEnd() {

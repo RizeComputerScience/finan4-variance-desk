@@ -304,8 +304,9 @@
     $('#qf').addEventListener('submit', (e) => {
       e.preventDefault(); const c = $('input[name=q]:checked'); const fb = $('#fb');
       if (!c) { fb.className = 'fb bad'; fb.textContent = 'Choose an answer.'; return; }
-      L.choice = Number(c.value); L.attempts = (L.attempts || 0) + 1; const ok = D.judgeQuiz(s.quiz, L.choice).ok;
-      fb.className = 'fb ' + (ok ? 'ok' : 'bad'); fb.textContent = q.why[L.choice];
+      const pick = Number(c.value); L.attempts = (L.attempts || 0) + 1; const ok = D.judgeQuiz(s.quiz, pick).ok;
+      if (ok || !L.done) L.choice = pick;   // a finished check keeps its right answer for the receipt
+      fb.className = 'fb ' + (ok ? 'ok' : 'bad'); fb.textContent = q.why[pick] + (!ok && L.done ? ' Your earlier right answer is still saved.' : '');
       if (ok) { markDone(s.id); $('#nextRow').hidden = false; (document.querySelector('#pager [data-go]:not(.secondary)') || $('#nextBtn')).focus(); }
       $('#att').textContent = 'Checks so far: ' + L.attempts; saveState();
     });
@@ -389,8 +390,9 @@
       <div class="actions"><button class="btn" type="submit">Save my note</button></div><div class="fb" id="fb" aria-live="polite"></div>
       <div class="actions" id="nextRow" ${L.done ? '' : 'hidden'}><button class="btn" type="button" id="nextBtn">Go to your receipt</button></div></form></article>`;
     const ta = $('#memoText'); const wc = () => { const n = wordCount(ta.value); $('#wc').textContent = n + (n === 1 ? ' word' : ' words') + ' so far.'; };
-    ta.addEventListener('input', () => { S.memo = ta.value; saveState(); wc(); }); wc();
-    $('#mf').addEventListener('submit', (e) => { e.preventDefault(); S.memo = ta.value; const r = D.judgeNote(S.memo); const fb = $('#fb');
+    ta.addEventListener('input', () => { const Ln = S.log[s.id]; if (!Ln.done || D.judgeNote(ta.value).ok) S.memo = ta.value;   // a saved note is never replaced by a too-short edit
+      saveState(); wc(); if (Ln.done && !D.judgeNote(ta.value).ok) $('#wc').textContent += ` Under ${N.minWords} words: your saved note stays on your receipt.`; }); wc();
+    $('#mf').addEventListener('submit', (e) => { e.preventDefault(); const r = D.judgeNote(ta.value); if (r.ok || !S.log[s.id].done) S.memo = ta.value; const fb = $('#fb');
       if (r.ok) { markDone(s.id); fb.className = 'fb ok'; fb.innerHTML = '<b>Saved.</b> Your note will print on your receipt.'; $('#nextRow').hidden = false; }
       else { fb.className = 'fb bad'; fb.textContent = `Your note has ${r.words} words. Write at least ${N.minWords}.`; } saveState(); });
     $('#nextBtn').addEventListener('click', () => go('receipt'));

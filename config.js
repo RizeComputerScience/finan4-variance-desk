@@ -223,7 +223,7 @@
   }
 
   function helpText(t, lvl, h) {
-    if (t.id === 't1') return lvl === 1 ? `One game brings in ${n0(t.Fb)} × ${pr(t.Pb)} = ${m(t.Fb * t.Pb)}. The season has ${t.G} of them.` : `${t.G} × ${n0(t.Fb)} × ${pr(t.Pb)} = ${m(t.answer)}. In the calculator: <code>${t.G}*${t.Fb}*${t.Pb}</code>.`;
+    if (t.id === 't1') return lvl === 1 ? `One game brings in ${n0(t.Fb)} × ${pr(t.Pb)} = ${m(t.Fb * t.Pb)}. The season has ${t.G} of them.` : `${t.G} × ${n0(t.Fb)} × ${pr(t.Pb)} = ${m(t.answer)}. In Desmos: <code>${t.G}*${t.Fb}*${t.Pb}</code>.`;
     if (t.id === 't2') return lvl === 1 ? `The season has ${t.G} × ${n0(t.Fb)} = ${n0(t.G * t.Fb)} fans. Each spends ${pr(t.Cb)}.` : `${n0(t.G * t.Fb)} × ${pr(t.Cb)} = ${m(t.answer)}.`;
     if (t.id === 't3') return lvl === 1 ? `Actual: ${t.G} × ${n0(t.Fa)} × ${pr(t.Pa)} = ${m(t.G * t.Fa * t.Pa)}. Budget: ${t.G} × ${n0(t.Fb)} × ${pr(t.Pb)} = ${m(t.G * t.Fb * t.Pb)}.` : `${m(t.G * t.Fa * t.Pa)} − ${m(t.G * t.Fb * t.Pb)} = ${sgn(t.answer)}, which is ${t.decision === 'fav' ? 'favorable' : 'unfavorable'}.`;
     if (t.id === 't4') return lvl === 1 ? `Attendance part: (${n0(t.Fa)} − ${n0(t.Fb)}) × ${t.G} × ${pr(t.Pb)} = ${sgn(t.vol)}.` : `Attendance part: ${sgn(t.vol)}. Price part: ${n0(t.Fa)} × ${t.G} × (${pr(t.Pa)} − ${pr(t.Pb)}) = ${sgn(t.price)}. Together they equal the ticket variance you found in “The season against the budget”, ${sgn(t.vol + t.price)}.`;

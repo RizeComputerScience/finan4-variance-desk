@@ -1,7 +1,7 @@
 /* Desk engine: the reusable shell for Rize "desk" minigames (FINAN IV pattern, 2026-11-02).
    A unit supplies window.DESK (config.js); this file supplies everything else: seeded numbers, the start
    form (email twice), the worked example stepper, one-question checks, task steps with row checks and a
-   help ladder, an inline calculator, the note, the completion-graded PNG receipt, and verification.
+   help ladder, a Desmos calculator link, the note, the completion-graded PNG receipt, and verification.
    Design rules: coursedev/process/standards/interactive-assignments.md. Reference unit: FINAN IV Unit 5.
    No dependencies. Works with or without a DOM (Node can load it for tests and for the verifier).
 
@@ -160,18 +160,14 @@
   const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } } };
   const PERSONAL = /@(gmail|yahoo|hotmail|outlook|live|icloud|me|aol|proton|protonmail|msn|ymail)\./i;
   root.Desk = D; // tests and self-checks
+  const DESMOS = 'https://www.desmos.com/scientific';
   document.title = ST.title;
   document.body.insertAdjacentHTML('afterbegin', `<a class="skip" href="#main">Skip to the desk</a>
 <header class="bar"><div class="bar-in"><div class="brand"><b>${esc(ST.company)}</b> ${esc(ST.team || '')}</div>
-<button class="btn-calc" id="calcBtn" type="button" aria-pressed="false" aria-controls="calc"><span aria-hidden="true">🧮</span> Calculator</button>
+<a class="btn-calc desmos-open" id="calcBtn" href="${DESMOS}" target="desmos" rel="noopener">Desmos calculator<span class="sr-only"> (opens in a new window)</span></a>
 <button class="btn-quiet" id="themeBtn" type="button" aria-pressed="false">Dark mode</button></div>
 <nav class="steps" aria-label="Steps"><ol id="stepNav"></ol></nav><p class="navnote" id="navnote" hidden>Move between steps at any time. Finished steps turn green.</p></header>
 <main id="main" tabindex="-1"><div id="view"></div></main>
-<aside class="calc" id="calc" hidden aria-labelledby="calcTitle"><div class="calc-top"><h2 id="calcTitle">Calculator</h2><button class="btn-quiet" type="button" id="calcClose">Close</button></div>
-<label class="sr-only" for="calcIn">Expression</label><input id="calcIn" autocomplete="off" spellcheck="false" placeholder="${esc(C.calcPlaceholder || '330000/(1.08)^5')}">
-<p class="calc-out" id="calcOut" aria-live="polite"></p><p class="calc-err" id="calcErr"></p><div class="keys" id="keys"></div>
-<p class="small" style="margin:.5rem 0 0">${C.calcHint || 'Type or tap. <b>^</b> raises to a power, so 1/(1.08)^5 is the year 5 discount factor at 8%.'} Prefer Desmos? <a href="https://www.desmos.com/scientific" target="_blank" rel="noopener">Open the Desmos scientific calculator</a> in a new tab.</p>
-<div class="actions" style="margin-top:.4rem"><button class="btn small secondary" type="button" id="calcCopy">Copy the result</button></div></aside>
 <footer><p>${esc(ST.kicker)}. Your progress is saved in this browser.</p></footer><div class="sr-only" aria-live="polite" id="announce"></div>`);
   const view = $('#view');
 
@@ -181,22 +177,22 @@
   setTheme(store.get(KEY + ':theme') || (root.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   themeBtn.addEventListener('click', () => setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 
-  // calculator
-  const calcEl = $('#calc'), calcIn = $('#calcIn'), calcOut = $('#calcOut'), calcErr = $('#calcErr'), calcBtn = $('#calcBtn'); let lastCalc = null;
-  function openCalc(show) { calcEl.hidden = !show; calcBtn.setAttribute('aria-pressed', String(show)); if (show) { if (calcEl.classList.contains('inline')) calcEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); calcIn.focus({ preventScroll: true }); } }
-  function dockCalc(slot) { if (slot) { slot.appendChild(calcEl); calcEl.classList.add('inline'); calcEl.hidden = false; calcBtn.setAttribute('aria-pressed', 'true'); } else { document.body.appendChild(calcEl); calcEl.classList.remove('inline'); calcEl.hidden = true; calcBtn.setAttribute('aria-pressed', 'false'); } }
-  calcBtn.addEventListener('click', () => openCalc(calcEl.classList.contains('inline') ? true : calcEl.hidden));
-  $('#calcClose').addEventListener('click', () => { openCalc(false); calcBtn.focus(); });
-  function runCalc() { const r = calc(calcIn.value); if (!calcIn.value.trim()) { calcOut.textContent = ''; calcErr.textContent = ''; lastCalc = null; return; } if (r.ok) { lastCalc = r.value; calcOut.textContent = '= ' + r.value.toLocaleString('en-US', { maximumFractionDigits: 6 }); calcErr.textContent = ''; } else { lastCalc = null; calcErr.textContent = r.err; } }
-  calcIn.addEventListener('input', runCalc);
-  calcIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); if (lastCalc != null) { calcIn.value = String(+lastCalc.toFixed(6)); runCalc(); } } });
-  ['7', '8', '9', '(', ')', '4', '5', '6', '×', '÷', '1', '2', '3', '+', '−', '0', '.', '^', '⌫', '=', 'C'].forEach((k) => {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = k; if ('×÷+−^()'.includes(k)) b.className = 'op'; if (k === '=') b.className = 'eq';
-    b.setAttribute('aria-label', { '×': 'times', '÷': 'divided by', '−': 'minus', '^': 'to the power of', '⌫': 'delete', 'C': 'clear', '=': 'equals' }[k] || k);
-    b.addEventListener('click', () => { if (k === 'C') calcIn.value = ''; else if (k === '⌫') calcIn.value = calcIn.value.slice(0, -1); else if (k === '=') { if (lastCalc != null) calcIn.value = String(+lastCalc.toFixed(6)); } else calcIn.value += k; runCalc(); });
-    $('#keys').appendChild(b);
-  });
-  $('#calcCopy').addEventListener('click', async () => { if (lastCalc == null) return; const txt = String(Math.round(lastCalc * 10000) / 10000); try { await navigator.clipboard.writeText(txt); $('#calcCopy').textContent = 'Copied ' + txt; } catch (e) { $('#calcCopy').textContent = txt; } setTimeout(() => { $('#calcCopy').textContent = 'Copy the result'; }, 1800); });
+  // calculator: the Desmos scientific calculator, opened in its own window beside the desk (Samuel, 11/10: "use Desmos").
+  // The in-page keypad was retired the same day. Embedding Desmos inside the page needs a paid Desmos licence; linking out is free.
+  // A popup sized to the right edge of the screen keeps the desk visible; if the browser blocks it, the link opens a normal tab.
+  function openDesmos(e) {
+    const W = 440, sc = root.screen || {}, aw = sc.availWidth || 1280, ah = sc.availHeight || 800;
+    const left = Math.max(0, (sc.availLeft || 0) + aw - W), top = sc.availTop || 0;
+    let w = null; try { w = root.open(DESMOS, 'desmos', `popup,width=${W},height=${Math.min(ah, 760)},left=${left},top=${top}`); } catch (err) { w = null; }
+    if (w) { e.preventDefault(); try { w.opener = null; w.focus(); } catch (err) { /* cross-origin */ } }
+  }
+  document.addEventListener('click', (e) => { const a = e.target.closest && e.target.closest('a.desmos-open'); if (a) openDesmos(e); });
+  function dockCalc(slot) {
+    if (!slot) return;
+    const hint = String(C.calcHint || 'For example, 330000/(1.08)^5 is $330,000 in year 5 brought back at 8%.').replace(/^Type or tap\.\s*/, '');
+    slot.innerHTML = `<div class="calc-strip"><a class="btn small secondary desmos-open" href="${DESMOS}" target="desmos" rel="noopener">Open the Desmos calculator<span class="sr-only"> (opens in a new window)</span></a>
+      <p class="small">${hint} In Desmos, typing <b>/</b> starts a fraction, and everything you type next goes under the line until you press <b>→</b>.</p></div>`;
+  }
 
   // state
   let S = { name: '', email: '', tasks: [], log: {}, memo: '', at: 'start' };
@@ -242,7 +238,7 @@
     pg.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   }
   function go(id) {
-    dockCalc(null); if (!S.email) return showStart();
+    if (!S.email) return showStart();
     S.at = id; saveState(); const s = D.STEPS[stepIdx(id)];
     if (id === 'receipt') showReceipt(); else if (s.kind === 'walk') showWalk(s); else if (s.kind === 'check') showCheck(s); else if (s.kind === 'note') showNote(s); else showTask(s);
     renderNav(); renderPager(id); $('#main').focus({ preventScroll: true }); root.scrollTo(0, 0);
@@ -259,7 +255,7 @@
         <li>${ST.stepsLine}</li>
         <li><b>This assignment is graded on completion.</b> Finish all ${n} steps to earn all ${D.POINTS} points (at least ${Math.ceil(n / 2)} steps earns ${D.POINTS / 2}). A wrong answer never costs points.</li>
         <li>Check your answers as often as you like. If you get stuck, the help buttons show you the setup with your own numbers.</li>
-        <li>A calculator opens next to every problem, and the <b>Calculator</b> button at the top of the page brings it back anytime.</li>
+        <li>The <b>Desmos calculator</b> button at the top of the page opens a calculator in a window beside the desk. Keep it open while you work.</li>
         <li>When you finish, download your receipt and upload it to the assignment page.</li></ul></div>
       <form class="start" id="startForm" novalidate>
         <div><label for="nm">Your full name</label><input type="text" id="nm" autocomplete="name" required value="${lastSaved ? esc(lastSaved.name) : ''}"></div>

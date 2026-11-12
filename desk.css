@@ -140,3 +140,8 @@ details.sources{margin-top:1.2rem;border-top:1px solid var(--line);padding-top:.
 details.sources summary{font-size:15px;color:var(--muted)}
 details.sources .sources-body{margin-top:.4rem}
 details.sources .sources-body p,details.sources .sources-body ul{margin:.3rem 0}
+
+/* ladder tables (2026-11-11): worked example and student version share one layout */
+table.cf.ladder td.lbl{font:16px var(--serif)}
+table.cf.ladder.filled{background:var(--brand-tint)}
+table.cf.ladder td:nth-child(2){color:var(--muted)}

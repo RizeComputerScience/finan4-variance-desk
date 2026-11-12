@@ -104,7 +104,25 @@
     return null;
   }
 
-  const h = { fnv1a, mulberry32, normEmail, df, npv, annuityFactor, pick, between, round, pct, money, near, wordCount, parseMoney, judgeNumber, calc };
+  /* ladder (added 2026-11-11, interactive-assignments rules 26 and 29): one calculation per line, as a table whose rows are
+     Line | Calculation | Result. The same call draws the worked example (opts.filled: every result shown, read-only) and the
+     student's version (lines with input: true become .rowin inputs judged row by row through judgeTask's rowRes, so the
+     engine's existing row marks, saved rows and verify all apply). A faded example is the student's version with most lines given.
+     lines: [{ label, calc (html), value (number or text), input, fmt: 'money' | 'factor' | 'pct' | 'num' (a plain number like a P/E) | 'text' }]
+     opts: { caption, filled, rows (saved inputs, indexed like lines) } */
+  function ladder(lines, opts) {
+    opts = opts || {};
+    const show = (l) => (l.fmt === 'factor' ? Number(l.value).toFixed(4) : l.fmt === 'pct' ? pct(l.value) : l.fmt === 'text' ? String(l.value) : l.fmt === 'num' ? String(+Number(l.value).toFixed(1)) : money(l.value, l.dp));
+    const esc2 = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const body = lines.map((l, i) => {
+      let res;
+      if (opts.filled || !l.input) res = `<b>${show(l)}</b>`;
+      else res = `<label class="sr-only" for="r${i}">${esc2(l.label)}</label><input id="r${i}" class="rowin" data-row="${i}" inputmode="decimal" autocomplete="off" placeholder="${l.fmt === 'factor' ? '0.0000' : l.fmt === 'pct' ? '0.0%' : l.fmt === 'num' ? '0' : '$0'}" value="${opts.rows && opts.rows[i] != null ? esc2(opts.rows[i]) : ''}"><span class="mark" id="mk${i}"></span>`;
+      return `<tr${l.input && !opts.filled ? ' class="hl"' : ''}><td class="lbl">${l.label}</td><td class="lbl">${l.calc || ''}</td><td>${res}</td></tr>`;
+    }).join('');
+    return `<div class="tw"><table class="cf ladder${opts.filled ? ' filled' : ''}">${opts.caption ? `<caption>${opts.caption}</caption>` : ''}<thead><tr><th scope="col">Line</th><th scope="col">Calculation</th><th scope="col">Result</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  const h = { fnv1a, mulberry32, normEmail, df, npv, annuityFactor, pick, between, round, pct, money, near, wordCount, parseMoney, judgeNumber, calc, ladder };
 
   // ---------------- config-bound core ----------------
   function make(C) {

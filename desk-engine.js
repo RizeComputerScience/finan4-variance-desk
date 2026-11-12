@@ -189,9 +189,7 @@
   document.addEventListener('click', (e) => { const a = e.target.closest && e.target.closest('a.desmos-open'); if (a) openDesmos(e); });
   function dockCalc(slot) {
     if (!slot) return;
-    const hint = String(C.calcHint || 'For example, 330000/(1.08)^5 is $330,000 in year 5 brought back at 8%.').replace(/^Type or tap\.\s*/, '');
-    slot.innerHTML = `<div class="calc-strip"><a class="btn small secondary desmos-open" href="${DESMOS}" target="desmos" rel="noopener">Open the Desmos calculator<span class="sr-only"> (opens in a new window)</span></a>
-      <p class="small">${hint} In Desmos, typing <b>/</b> starts a fraction, and everything you type next goes under the line until you press <b>→</b>.</p></div>`;
+    slot.innerHTML = `<div class="calc-strip"><a class="btn small secondary desmos-open" href="${DESMOS}" target="desmos" rel="noopener">Open the Desmos calculator<span class="sr-only"> (opens in a new window)</span></a></div>`;
   }
 
   // state
@@ -214,7 +212,8 @@
   const kicker = (id) => `${practiceBanner()}<p class="kicker">Step ${stepIdx(id) + 1} of ${D.STEPS.length} · ${esc(D.STEPS[stepIdx(id)].label)}</p>`;
   const sourcesBox = (html) => (html ? `<details class="sources"><summary>Sources</summary><div class="sources-body">${html}</div></details>` : '');
   const exampleBox = (html) => (html ? `<details class="example" open><summary>Worked example</summary><div class="ex-body">${html}</div></details>` : '');
-  const memoHead = (done) => `<div class="memo-head"><span>From <b>${esc(ST.from)}</b>, ${esc(ST.fromTitle)}</span>${done ? '<span class="stamp">Done</span>' : ''}</div>`;
+  // The "From <name>, <title>" line was cut 2026-11-12 (Samuel: a sender line with no story is noise); only the Done stamp remains.
+  const memoHead = (done) => (done ? '<div class="memo-head"><span></span><span class="stamp">Done</span></div>' : '');
   function renderNav() {
     const ol = $('#stepNav'); ol.innerHTML = ''; $('#navnote').hidden = !S.email; if (!S.email) return;
     [...D.STEPS, { id: 'receipt', label: 'Receipt' }].forEach((s) => {

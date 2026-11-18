@@ -1,0 +1,62 @@
+/* The Variance Desk theme (FINAN IV Unit 3), 2026-11-18. Loaded after desk.css; changes the look only.
+   A minor-league ballpark and its scorebook: Gulls navy and foul-pole mustard on scorecard paper, a slab
+   jersey face for the title, square scorebook cells for the steps (a filled diamond when the run scores),
+   scoreboard-band table headers. Dark mode is the night game under the lights. */
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Libre+Franklin:ital,wght@0,400;0,600;0,800;1,400;1,600&display=swap');
+:root{
+  --bg:#EDF2F6;--surface:#FFFFFF;--panel:#E1E9F0;--line:#C3D0DB;--line-strong:#5E7489;
+  --ink:#0E2236;--muted:#44586B;--brand:#173A5E;--brand-ink:#FFFFFF;--brand-tint:#DDE7F1;
+  --receipt-frame:#173A5E;--receipt-paper:#F7F3E6;
+  --ok:#1B6B3C;--ok-tint:#DFF0E4;--bad:#A3241C;--bad-tint:#FBE6E3;--hint:#36506A;--hint-tint:#E2EAF2;--focus:#0E2236;--hl:#FFE7A3;--ok-ink:#FFFFFF;
+  --mustard:#D9A21B;--grid:rgba(23,58,94,.07);
+  --serif:'Libre Franklin','Helvetica Neue',Arial,sans-serif;--display:'Alfa Slab One','Rockwell','Roboto Slab',Georgia,serif;}
+:root[data-theme="dark"]{
+  --bg:#0B1828;--surface:#11233A;--panel:#172E48;--line:#284565;--line-strong:#7F99B5;
+  --ink:#EBF1F8;--muted:#AABED2;--brand:#F2C14E;--brand-ink:#13233A;--brand-tint:#2A2918;
+  --ok:#7DD49A;--ok-tint:#14301F;--bad:#FF8D84;--bad-tint:#3F1E20;--hint:#A9C1DA;--hint-tint:#182C42;--focus:#F2C14E;--hl:#4A3D12;--ok-ink:#0B1828;
+  --mustard:#F2C14E;--grid:rgba(242,193,78,.045);}
+
+/* scorecard paper */
+body{font-size:17.5px;background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:30px 30px;
+  display:flex;flex-direction:column;min-height:100vh}
+header.bar{order:-2;background:var(--bg);border-bottom:3px solid var(--brand);box-shadow:0 3px 0 var(--mustard)}
+.brand{font-style:normal}
+.brand b{font:400 19px var(--display);letter-spacing:.01em}
+
+/* header art: only on the first screen */
+.desk-art{order:-1;display:none;width:calc(100% - 2.2rem);max-width:calc(820px - 2.2rem);height:auto;margin:1.6rem auto 0;border-radius:4px;box-shadow:0 0 0 3px var(--brand),0 0 0 6px var(--mustard)}
+body:has(#startBox) .desk-art{display:block}
+@media (max-width:600px){.desk-art{aspect-ratio:2.4/1;object-fit:cover;object-position:66% 100%}}
+
+/* steps as scorebook cells; a finished step is a run scored */
+nav.steps{padding-top:.55rem}
+nav.steps button{border-radius:3px;font:600 14px var(--serif);border-color:var(--line-strong)}
+nav.steps button.done{background:var(--ok);border-color:var(--ok);color:var(--ok-ink)}
+nav.steps button.done::before{content:"\25C6\00a0";content:"\25C6\00a0" / "done: "}
+nav.steps button[aria-current="step"]{outline:2.5px solid var(--focus);outline-offset:2px}
+
+/* type */
+h1{font:400 clamp(38px,6.4vw,60px)/1.02 var(--display);color:var(--brand);letter-spacing:0}
+h2{font:800 28px/1.15 var(--serif);letter-spacing:-.01em}
+.kicker{font-style:normal;font-weight:600;font-size:15.5px;letter-spacing:.02em}
+.dek{font-size:19px;font-style:normal;color:var(--ink);max-width:36em}
+.points{font:400 48px/1 var(--display);color:var(--brand)}
+
+/* cards: a scorecard with a navy top band */
+.box{border-radius:4px;border-left:5px solid var(--mustard)}
+.memo{border-radius:4px;border:1px solid var(--line);border-top:6px solid var(--brand);box-shadow:none}
+.stamp{border-radius:2px}
+.btn,.btn-calc,.btn-quiet{border-radius:4px}
+.btn{font-weight:800;box-shadow:inset 0 -3px 0 rgba(0,0,0,.22)}
+.btn.secondary{box-shadow:none}
+.choice span{border-radius:4px}
+
+/* tables: the scoreboard header band */
+table.cf th{background:var(--brand);color:var(--brand-ink);font:600 14px var(--serif);border-bottom:3px solid var(--mustard);padding:.45rem .6rem}
+table.cf caption{font-style:normal;font-weight:600}
+table.cf td.lbl{font-family:var(--serif)}
+table.cf tfoot tr.total td{border-top:2.5px solid var(--ink)}
+.formula{border-left:4px solid var(--mustard);border-radius:0 4px 4px 0}
+.calc-strip{border-left-color:var(--mustard)}
+details.example{border-left-color:var(--brand)}
+@media (max-width:680px){table.cf th{padding:.35rem .25rem}}

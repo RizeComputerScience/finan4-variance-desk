@@ -9,7 +9,10 @@
      split2), and a cash budget (cash1, cash2). One light check, one exam-style check, the note.
    - Cut from the desk: the walkthrough, spending per fan (never taught, never tested), two of the three light checks.
    - Seeded answers never equal a reading answer or a worked-example answer (FORBID below; core_test checks it).
-   The previous version is in v2-archive/. seedVersion 3 and version 3: progress and receipts from v2 do not carry over. */
+   The previous version is in v2-archive/. seedVersion 3 and version 3: progress and receipts from v2 do not carry over.
+   2026-11-18 (peer review): wording only, to use the industry names the reading now introduces (budget variance, volume
+   variance, price variance, cash budget). Steps, logic, line labels and version unchanged; pre-edit copy in
+   v-archive-2026-11-18/. */
 (function (root) {
   'use strict';
   const QUIZ = [
@@ -34,13 +37,13 @@
   const STEPS = [
     { id: 'bud1', label: 'Ticket budget', kind: 'task' },
     { id: 'bud2', label: 'Food cost budget', kind: 'task' },
-    { id: 'var1', label: 'Tickets against budget', kind: 'task' },
-    { id: 'var2', label: 'Costs against budget', kind: 'task' },
+    { id: 'var1', label: 'Ticket revenue variance', kind: 'task' },
+    { id: 'var2', label: 'Food cost variance', kind: 'task' },
     { id: 'q1', label: 'Quick check', kind: 'check', quiz: 0 },
     { id: 'split1', label: 'Fans or prices?', kind: 'task' },
     { id: 'split2', label: 'Cars or prices?', kind: 'task' },
-    { id: 'cash1', label: 'Cash, January to March', kind: 'task' },
-    { id: 'cash2', label: 'Cash, April to June', kind: 'task' },
+    { id: 'cash1', label: 'Cash budget, January to March', kind: 'task' },
+    { id: 'cash2', label: 'Cash budget, April to June', kind: 'task' },
     { id: 'q2', label: 'Exam-style question', kind: 'check', quiz: 1 },
     { id: 'note', label: 'Your note', kind: 'note' },
   ];
@@ -164,13 +167,13 @@
       body: `<p>Food and supplies cost the Gulls <b>${m(t.AC)}</b> this season. The budget planned <b>${pr(t.Cf)}</b> a fan for <b>${n0(t.Y)} fans</b>. Was food cost above or below the budget?</p>`,
       choice: { legend: 'Is the food cost variance favorable or unfavorable?', options: FU } }),
     split1: (t) => ({ title: 'Fans or prices?', place: 'The owner asks whether the ticket gap came from the crowd or the price.',
-      body: `<p>Split the ticket variance into its two parts. The budget planned <b>${n0(t.Y)} fans</b> at <b>${pr(t.Pb)}</b>, and <b>${n0(t.X)} fans</b> came at <b>${pr(t.Pa)}</b>. The volume part is done for you.</p>` }),
+      body: `<p>Split the ticket revenue variance into its volume variance and its price variance. The budget planned <b>${n0(t.Y)} fans</b> at <b>${pr(t.Pb)}</b>, and <b>${n0(t.X)} fans</b> came at <b>${pr(t.Pa)}</b>. The volume part is done for you.</p>` }),
     split2: (t) => ({ title: 'Cars or prices?', place: 'The Gulls also sell parking.',
-      body: `<p>The budget planned <b>${n0(t.Yp)} cars</b> at <b>${pr(t.Pp)}</b>. The season parked <b>${n0(t.Xp)} cars</b> at <b>${pr(t.Pp2)}</b>. Split the parking variance into its two parts.</p>`,
-      choice: { legend: 'Which part moved parking revenue more?', options: [['vol', 'The number of cars (the volume part)'], ['price', 'The price (the price part)']] } }),
+      body: `<p>The budget planned <b>${n0(t.Yp)} cars</b> at <b>${pr(t.Pp)}</b>. The season parked <b>${n0(t.Xp)} cars</b> at <b>${pr(t.Pp2)}</b>. Split the parking revenue variance into its volume variance and its price variance.</p>`,
+      choice: { legend: 'Which variance moved parking revenue more?', options: [['vol', 'The number of cars (the volume variance)'], ['price', 'The price (the price variance)']] } }),
     cash1: (t) => ({ title: 'Cash before the gates open', place: 'Odalys needs to know the team can pay its bills before the season starts.',
-      body: `<p>The Gulls pay staff and repair crews all spring, before the crowds bring cash in. They start January with <b>${m(t.S0)}</b>. How much cash is left at the end of March? Two months are done for you.</p>` }),
-    cash2: (t) => ({ title: 'Cash into the season', place: 'Odalys carries the plan from April to June.',
+      body: `<p>The Gulls pay staff and repair crews all spring, before the crowds bring cash in. They start January with <b>${m(t.S0)}</b>. Build the cash budget: how much cash is left at the end of March? Two months are done for you.</p>` }),
+    cash2: (t) => ({ title: 'Cash into the season', place: 'Odalys carries the cash budget from April to June.',
       body: '<p>Each month starts with the cash the month before ended with, so April starts with your end of March. Fill in April to June, then find the lowest month of all six.</p>',
       choice: { legend: 'Which month, January to June, ends with the least cash?', options: MONTHS.map((mo, i) => [String(i), mo]) } }),
   };
@@ -250,8 +253,8 @@
     if (t.id === 'bud2') return `Food and supplies should cost ${m(t.answer)}. If the crowd or the cost per fan changes, Odalys will see which one moved.`;
     if (t.id === 'var1') return `Ticket revenue came in ${m(Math.abs(t.answer))} ${t.answer < 0 ? 'below' : 'above'} the budget, ${t.decision === 'fav' ? 'a favorable' : 'an unfavorable'} variance.`;
     if (t.id === 'var2') return `Food cost came in ${m(Math.abs(t.answer))} ${t.answer < 0 ? 'below' : 'above'} the budget. For a cost, that is ${t.decision === 'fav' ? 'favorable' : 'unfavorable'}.`;
-    if (t.id === 'split1') return `${t.vol < 0 ? 'Fewer' : 'More'} fans moved ticket revenue by ${sgn(t.vol)}, and the ${t.price > 0 ? 'higher' : 'lower'} price moved it by ${sgn(t.price)}. Together they make the ${sgn(t.answer)} you found for tickets against the budget.`;
-    if (t.id === 'split2') return `The ${t.decision === 'vol' ? 'number of cars' : 'price'} moved parking revenue more: ${sgn(t.vol)} from cars and ${sgn(t.price)} from price.`;
+    if (t.id === 'split1') return `${t.vol < 0 ? 'Fewer' : 'More'} fans gave a volume variance of ${sgn(t.vol)}, and the ${t.price > 0 ? 'higher' : 'lower'} price gave a price variance of ${sgn(t.price)}. Together they make the ${sgn(t.answer)} ticket revenue variance you found earlier.`;
+    if (t.id === 'split2') return `The ${t.decision === 'vol' ? 'volume variance, from the number of cars,' : 'price variance'} moved parking revenue more: ${sgn(t.vol)} from cars and ${sgn(t.price)} from price.`;
     if (t.id === 'cash1') return `The Gulls end March with ${m(t.answer)}, down from ${m(t.S0)} in January.`;
     if (t.id === 'cash2') return `Cash bottoms out at ${m(t.end[Number(t.decision)])} in ${MONTHS[Number(t.decision)]}. That is the month Odalys needs a cushion for, so she can arrange a loan in advance.`;
   }
@@ -271,11 +274,11 @@
     calcPlaceholder: '60*4000*12',
     story: { title: 'The Variance Desk', kicker: 'Corporate Finance, Unit 3', company: 'Tidewater Gulls', team: 'Front Office',
       from: 'Odalys Brennan', fromTitle: 'finance director, Tidewater Gulls',
-      dek: 'The Tidewater Gulls, a minor-league baseball team, must decide what to change for next season: ticket prices, or how they bring fans in. Odalys Brennan, the finance director, plans each season in numbers and explains to the owner where it came out differently. You work through this season with her, from the budget to the cash the team needs before the gates open.',
+      dek: 'The Tidewater Gulls, a minor-league baseball team, must decide what to change for next season: ticket prices, or how they bring fans in. Odalys Brennan, the finance director, plans each season in a budget and explains every variance to the owner. You work through this season with her, from the budget to the cash budget that carries the team through the spring.',
       whatBox: '',
       stepsLine: 'Eleven short steps. Each shows a worked example in the same table you fill in, then you do the same calculation with your own numbers.' },
     steps: STEPS, quiz: QUIZ, walk: null, buildTasks, taskView, judgeTask, helpText, praise, selfAnswer, selfWrong,
     note: { title: 'A note for the owner', label: 'Your note to Odalys', minWords: 30, receiptHeading: 'Note to the finance director',
-      prompt: 'The owner wants one paragraph before next season’s planning meeting. Was this season’s ticket gap mostly about the crowd or about the price, and what should next season’s plan change because of it?' },
+      prompt: 'The owner wants one paragraph before next season’s planning meeting. Was this season’s ticket revenue variance mostly volume variance (the crowd) or price variance, and what should next season’s plan change because of it?' },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

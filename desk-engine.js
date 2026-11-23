@@ -486,16 +486,17 @@
 
   // self-checks (interactive-health contract)
   const checks = [];
+  const SC_CODE = CODE_ABC.slice(0, 8); // a valid desk code (receipts carry a code since 2026-11-16, not a name or email)
   const reg = (name, fn) => checks.push({ name, fn });
   root.__selfCheck = async () => { const out = []; for (const c of checks) { try { const r = await c.fn(); out.push(r === true || r === undefined ? { name: c.name, ok: true } : r === false ? { name: c.name, ok: false } : { name: c.name, ok: !!r.ok, detail: r.detail }); } catch (e) { out.push({ name: c.name, ok: false, detail: String(e) }); } } return { ok: out.every((x) => x.ok), checks: out }; };
-  reg('tasks generate for a test email', () => D.buildTasks('selfcheck@example.edu').length === D.STEPS.filter((s) => s.kind === 'task').length || { ok: false, detail: 'task count mismatch' });
-  reg('each task accepts its own answer and rejects a wrong one', () => { for (const t of D.buildTasks('selfcheck@example.edu')) { const good = C.selfAnswer(t, h); if (!C.judgeTask(t, good, h).ok) return { ok: false, detail: t.id + ' rejects its own answer' }; const bad = C.selfWrong(t, h); if (C.judgeTask(t, bad, h).ok) return { ok: false, detail: t.id + ' accepts a wrong answer' }; } return true; });
+  reg('tasks generate for a test desk code', () => D.buildTasks(SC_CODE).length === D.STEPS.filter((s) => s.kind === 'task').length || { ok: false, detail: 'task count mismatch' });
+  reg('each task accepts its own answer and rejects a wrong one', () => { for (const t of D.buildTasks(SC_CODE)) { const good = C.selfAnswer(t, h); if (!C.judgeTask(t, good, h).ok) return { ok: false, detail: t.id + ' rejects its own answer' }; const bad = C.selfWrong(t, h); if (C.judgeTask(t, bad, h).ok) return { ok: false, detail: t.id + ' accepts a wrong answer' }; } return true; });
   reg('calculator evaluates a discount factor', () => Math.abs(calc('330000/(1.08)^5').value - 224592.455) < 0.01 || { ok: false, detail: 'calc wrong' });
   reg('a page view rendered', () => view.textContent.trim().length > 200 || { ok: false, detail: 'view is empty' });
   reg('receipt PNG round-trips its payload', async () => {
-    const tasks = D.buildTasks('selfcheck@example.edu'); const log = {};
+    const tasks = D.buildTasks(SC_CODE); const log = {};
     D.STEPS.forEach((s) => { if (s.kind === 'check') log[s.id] = { done: true, choice: C.quiz[s.quiz].answer }; else if (s.kind === 'task') log[s.id] = Object.assign({ done: true }, C.selfAnswer(tasks.find((t) => t.id === s.id), h)); else log[s.id] = { done: true }; });
-    const p = D.makePayload('Self Check', 'selfcheck@example.edu', log, 'word '.repeat(C.note.minWords + 5));
+    const p = D.makePayload(SC_CODE, log, 'word '.repeat(C.note.minWords + 5));
     const cv2 = document.createElement('canvas'); cv2.width = 20; cv2.height = 20; const blob = await new Promise((res) => cv2.toBlob(res, 'image/png'));
     const v = D.verifyPayload(D.decodeReceipt(D.readTextChunk(D.addTextChunk(new Uint8Array(await blob.arrayBuffer()), D.encodeReceipt(p)))));
     return (v.checksumOk && v.done === D.STEPS.length && v.points === D.POINTS) || { ok: false, detail: JSON.stringify(v.problems) };
